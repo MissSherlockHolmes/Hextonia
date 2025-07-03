@@ -56,8 +56,8 @@ class HexCardsManager {
     }
 
     displayCards() {
-        // Create all options including correct answer and random options
-        const options = [this.currentWordData.correctForm, ...this.currentWordData.options];
+        // Use the options array directly (it already includes the correct form)
+        const options = [...this.currentWordData.options];
         const shuffledOptions = this.shuffleArray([...options]);
 
         // Update all three boxes with randomized word options
@@ -163,9 +163,6 @@ class HexCardsManager {
             // Show success feedback
             this.showSuccessFeedback();
             
-            // Highlight valid positions for next card
-            this.highlightValidPositions();
-            
             // Move to next word after a short delay
             setTimeout(() => {
                 console.log(`Moving to next word. Current index: ${this.currentWordIndex}`);
@@ -268,7 +265,10 @@ class HexCardsManager {
     }
 
     validatePlacement(position, isFirstCard = false) {
-        return this.placementController.validatePlacement(position, isFirstCard);
+        console.log(`Validating placement at (${position.x}, ${position.y}), isFirstCard: ${isFirstCard}`);
+        const result = this.placementController.validatePlacement(position, isFirstCard);
+        console.log(`Placement validation result:`, result);
+        return result;
     }
 
     getValidAdjacentPositions() {
@@ -280,7 +280,9 @@ class HexCardsManager {
     }
 
     resetPlacementController() {
+        console.log('Resetting placement controller...');
         this.placementController.reset();
+        console.log('Placement controller reset complete. History length:', this.placementController.getPlacementHistory().length);
     }
 
     highlightValidPositions() {
@@ -315,27 +317,43 @@ class HexCardsManager {
     }
 
     showAllComplete() {
-        // Update the first box to show completion message
-        const box1 = document.querySelector('.box:nth-child(1)');
-        if (box1) {
-            const hexagon = box1.querySelector('.hexagon');
-            if (hexagon) {
-                hexagon.innerHTML = `
-                    <div style="text-align: center; color: #28a745; padding: 20px;">
-                        <div style="font-size: 18px; margin-bottom: 10px;">🎉 All done!</div>
-                        <div style="font-size: 14px;">Great job completing all words</div>
-                    </div>
-                `;
-            }
-        }
-        // Clear other boxes
-        const boxes = document.querySelectorAll('.box:nth-child(2), .box:nth-child(3)');
-        boxes.forEach(box => {
+        // Clear all boxes first
+        const allBoxes = document.querySelectorAll('.box');
+        allBoxes.forEach(box => {
             const hexagon = box.querySelector('.hexagon');
             if (hexagon) {
                 hexagon.innerHTML = '';
             }
         });
+        
+        // Update the first box to show completion message
+        const box1 = document.querySelector('.box:nth-child(1)');
+        if (box1) {
+            // Create a new hexagon if one doesn't exist
+            let hexagon = box1.querySelector('.hexagon');
+            if (!hexagon) {
+                hexagon = document.createElement('div');
+                hexagon.className = 'hexagon';
+                hexagon.style.left = '50%';
+                hexagon.style.top = '50%';
+                hexagon.style.transform = 'translate(-50%, -50%)';
+                box1.appendChild(hexagon);
+            }
+            
+            // Set the completion message
+            hexagon.innerHTML = `
+                <div style="text-align: center; color: #28a745; padding: 20px;">
+                    <div style="font-size: 18px; margin-bottom: 10px;">🎉 All done!</div>
+                    <div style="font-size: 14px;">Great job completing all words</div>
+                </div>
+            `;
+            
+            // Style the completion hexagon
+            hexagon.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+            hexagon.style.color = 'white';
+            hexagon.style.border = 'none';
+            hexagon.style.cursor = 'default';
+        }
     }
 }
 

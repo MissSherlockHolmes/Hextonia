@@ -9,8 +9,17 @@ function selectForms(forms, correctForm) {
         throw new Error('At least 1 form is required');
     }
     
-    // Remove duplicates from forms array
-    const uniqueForms = [...new Set(forms)];
+    // Remove duplicates and invalid forms from forms array
+    const validForms = forms.filter(form => {
+        // Filter out dashes, empty strings, and other invalid forms
+        return form && 
+               form.trim() !== '' && 
+               form.trim() !== '-' && 
+               form.trim() !== '—' && 
+               form.trim() !== '–' &&
+               form.length > 1; // Ensure form has at least 2 characters
+    });
+    const uniqueForms = [...new Set(validForms)];
     
     // If we have less than 3 unique forms, we need to work with what we have
     if (uniqueForms.length < 3) {
@@ -38,17 +47,42 @@ function selectForms(forms, correctForm) {
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    // Pick two random forms
-    const randomForms = pool.slice(0, 2);
-    // Combine with the correct form and shuffle again
-    const options = [correctForm, ...randomForms];
+    // Pick two random forms, ensuring they're different from each other and the correct form
+    const randomForms = [];
+    for (const form of pool) {
+        if (randomForms.length < 2 && form !== correctForm && !randomForms.includes(form)) {
+            randomForms.push(form);
+        }
+    }
+    
+    // Combine with the correct form and ensure uniqueness
+    const options = [correctForm];
+    for (const form of randomForms) {
+        if (!options.includes(form)) {
+            options.push(form);
+        }
+    }
+    
+    // If we don't have 3 unique options, pick more from the pool
+    while (options.length < 3 && pool.length > 0) {
+        for (const form of pool) {
+            if (options.length >= 3) break;
+            if (!options.includes(form)) {
+                options.push(form);
+            }
+        }
+        break; // Prevent infinite loop
+    }
+    
+    // Final shuffle
     for (let i = options.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [options[i], options[j]] = [options[j], options[i]];
     }
+    
     return {
         correct: correctForm,
-        options
+        options: options.slice(0, 3) // Ensure exactly 3 options
     };
 }
 

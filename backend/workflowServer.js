@@ -81,31 +81,66 @@ app.post('/api/process-phrase', async (req, res) => {
         for (let i = 0; i < words.length; i++) {
             const originalWord = words[i];
             const searchWord = searchWords[i];
-            const forms = formsData[searchWord] || [];
-            console.log(`Processing word "${originalWord}" (search: "${searchWord}") with ${forms.length} forms:`, forms);
+            let forms = formsData[searchWord] || [];
+            
+            // Filter out invalid forms (dashes, empty strings, etc.) and normalize to lowercase
+            forms = forms.filter(form => {
+                return form && 
+                       form.trim() !== '' && 
+                       form.trim() !== '-' && 
+                       form.trim() !== '—' && 
+                       form.trim() !== '–' &&
+                       form.length > 1; // Ensure form has at least 2 characters
+            }).map(form => form.toLowerCase()); // Normalize all forms to lowercase
+            
+            console.log(`Processing word "${originalWord}" (search: "${searchWord}") with ${forms.length} valid forms:`, forms);
             
             if (forms.length >= 3) {
-                console.log(`Word "${originalWord}" has enough forms, using selectForms`);
+                console.log(`Word "${originalWord}" has enough valid forms, using selectForms`);
                 const selection = selectForms(forms, originalWord);
-                results.push({
-                    originalWord: originalWord,
-                    correctForm: originalWord, // Keep the original inflected form as correct answer
-                    options: selection.options
-                });
+                
+                // Final check to ensure no duplicates in options
+                const uniqueOptions = [...new Set(selection.options)];
+                if (uniqueOptions.length < 3) {
+                    console.log(`Warning: Not enough unique options for "${originalWord}", using dummy options`);
+                    // If we don't have enough unique options, use dummy logic
+                    const dummyOptions = createDummyOptions(originalWord);
+                    const allOptions = new Set([originalWord, ...uniqueOptions, ...dummyOptions]);
+                    const finalOptions = Array.from(allOptions).slice(0, 3);
+                    results.push({
+                        originalWord: originalWord,
+                        correctForm: originalWord.toLowerCase(),
+                        options: finalOptions
+                    });
+                } else {
+                    results.push({
+                        originalWord: originalWord,
+                        correctForm: originalWord.toLowerCase(), // Keep the original inflected form as correct answer in lowercase
+                        options: uniqueOptions.slice(0, 3)
+                    });
+                }
             } else {
                 // Try to get synonyms from Ekilex using the root word
-                console.log(`Word "${originalWord}" has not enough forms, trying to fetch synonyms from Ekilex`);
                 let synonyms = [];
                 try {
                     synonyms = await getSynonymsForWord(searchWord);
                 } catch (e) {
                     console.error(`Error fetching synonyms for ${searchWord}:`, e);
                 }
-                // Filter out the word itself and duplicates
-                synonyms = synonyms.filter(syn => syn !== originalWord && !forms.includes(syn));
+                // Filter out the word itself, duplicates, and invalid forms, and normalize to lowercase
+                synonyms = synonyms.filter(syn => {
+                    return syn && 
+                           syn !== originalWord && 
+                           !forms.includes(syn) &&
+                           syn.trim() !== '' && 
+                           syn.trim() !== '-' && 
+                           syn.trim() !== '—' && 
+                           syn.trim() !== '–' &&
+                           syn.length > 1;
+                }).map(syn => syn.toLowerCase()); // Normalize synonyms to lowercase
                 // Use available forms + synonyms (if any)
                 let options = new Set([...forms]); // Use Set to prevent duplicates
-                options.add(originalWord);
+                options.add(originalWord.toLowerCase()); // Add original word in lowercase
                 for (const syn of synonyms) {
                     if (options.size < 3) {
                         options.add(syn);
@@ -116,17 +151,18 @@ app.post('/api/process-phrase', async (req, res) => {
                     console.log(`Not enough synonyms found for "${originalWord}", using dummy logic for remaining options`);
                     const dummyOptions = createDummyOptions(originalWord);
                     for (const dummy of dummyOptions) {
-                        if (options.size < 3) {
+                        if (options.size < 3 && !options.has(dummy)) {
                             options.add(dummy);
                         }
                     }
                 }
-                // Shuffle the options
-                const shuffled = Array.from(options).sort(() => Math.random() - 0.5);
+                // Ensure we have exactly 3 unique options
+                const uniqueOptions = Array.from(options);
+                const shuffled = uniqueOptions.sort(() => Math.random() - 0.5).slice(0, 3);
                 console.log(`Created options for "${originalWord}":`, shuffled);
                 results.push({
                     originalWord: originalWord,
-                    correctForm: originalWord, // Keep the original inflected form as correct answer
+                    correctForm: originalWord.toLowerCase(), // Keep the original inflected form as correct answer in lowercase
                     options: shuffled
                 });
             }
@@ -155,7 +191,7 @@ app.get('/api/health', (req, res) => {
 // Helper method to create realistic dummy options for Estonian words
 function createDummyOptions(word) {
     const options = new Set(); // Use Set to automatically prevent duplicates
-    options.add(word); // Always include the original word
+    // Don't add the original word here since it's already added by the workflow server
     
     // Common Estonian suffixes and variations
     const suffixes = ['a', 'e', 'i', 'u', 'd', 't', 'n', 's'];
@@ -193,7 +229,7 @@ function createDummyOptions(word) {
         options.add(newOption);
     }
     
-    return Array.from(options);
+    return Array.from(options).map(option => option.toLowerCase());
 }
 
 app.listen(PORT, () => {

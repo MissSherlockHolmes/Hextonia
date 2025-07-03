@@ -60,18 +60,26 @@ function enableHexSnap() {
                 if (!existingHexagon) {
                     // Get grid position for placement validation
                     const gridPosition = getGridPosition(nearest.cell);
-                    const isFirstCard = window.hexCardsManager && window.hexCardsManager.placementController.getPlacementHistory().length === 0;
+                    const placementHistory = window.hexCardsManager ? window.hexCardsManager.placementController.getPlacementHistory() : [];
+                    const isFirstCard = placementHistory.length === 0;
+                    console.log(`HexSnap: Placement history length: ${placementHistory.length}, isFirstCard: ${isFirstCard}`);
                     
                     // Validate placement using placement controller
                     if (window.hexCardsManager) {
+                        console.log(`HexSnap: Validating placement at grid position (${gridPosition.x}, ${gridPosition.y}), isFirstCard: ${isFirstCard}`);
                         const validation = window.hexCardsManager.validatePlacement(gridPosition, isFirstCard);
+                        console.log(`HexSnap: Validation result:`, validation);
                         
                         if (!validation.isValid) {
+                            console.log(`HexSnap: Invalid placement, showing error: ${validation.reason}`);
                             // Show placement error feedback
                             showPlacementError(validation.reason);
                             returnToOrigin(hexagon);
                             return;
                         }
+                        console.log(`HexSnap: Valid placement, allowing drop`);
+                    } else {
+                        console.log(`HexSnap: No hexCardsManager found`);
                     }
                     
                     // Place the hexagon in the grid cell

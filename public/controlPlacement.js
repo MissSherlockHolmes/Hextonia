@@ -7,15 +7,17 @@ class PlacementController {
     constructor() {
         this.placementHistory = [];
         this.grid = new Map(); // Tracks occupied positions
+        // Adjacent directions for flat-top hexagonal grid
+        // In a flat-top hex grid, odd columns are offset vertically
         this.adjacentDirections = [
             { x: -1, y: 0 },   // left
             { x: 1, y: 0 },    // right
             { x: 0, y: -1 },   // top
             { x: 0, y: 1 },    // bottom
-            { x: -1, y: -1 },  // top-left
-            { x: 1, y: -1 },   // top-right
-            { x: -1, y: 1 },   // bottom-left
-            { x: 1, y: 1 }     // bottom-right
+            { x: -1, y: -1 },  // top-left (for even columns)
+            { x: 1, y: -1 },   // top-right (for even columns)
+            { x: -1, y: 1 },   // bottom-left (for even columns)
+            { x: 1, y: 1 }     // bottom-right (for even columns)
         ];
     }
 
@@ -61,24 +63,61 @@ class PlacementController {
     }
 
     /**
-     * Check if a position is adjacent to the last placed card
+     * Check if a position is adjacent to exactly one previous card
      * @param {Object} position - The position to check {x, y}
-     * @returns {boolean} True if adjacent to the last placed card
+     * @returns {Object} Result with isValid and reason
      */
-    isAdjacentToLast(position) {
-        const lastPosition = this.getLastPosition();
-        if (!lastPosition) {
-            return true; // First card can be placed anywhere
+    isAdjacentToExactlyOneCard(position) {
+        if (this.placementHistory.length === 0) {
+            return { isValid: true, reason: 'First card can be placed anywhere' };
         }
 
-        for (const direction of this.adjacentDirections) {
-            const adjacentPos = {
-                x: lastPosition.x + direction.x,
-                y: lastPosition.y + direction.y
-            };
+        let adjacentCount = 0;
+        let adjacentCard = null;
+
+        // Check adjacency to all previously placed cards
+        for (const placement of this.placementHistory) {
+            const cardPos = placement.position;
             
-            if (adjacentPos.x === position.x && adjacentPos.y === position.y) {
-                return true;
+            // Check if this position is adjacent to the card position
+            if (this.isAdjacent(position, cardPos)) {
+                adjacentCount++;
+                adjacentCard = placement;
+            }
+        }
+
+        if (adjacentCount === 0) {
+            return { isValid: false, reason: 'Card must be adjacent to exactly one previous card' };
+        } else if (adjacentCount > 1) {
+            return { isValid: false, reason: 'Card cannot be adjacent to multiple previous cards' };
+        } else {
+            return { isValid: true, reason: 'Valid placement adjacent to one card' };
+        }
+    }
+
+    /**
+     * Check if two positions are adjacent in a flat-top hexagonal grid
+     * @param {Object} pos1 - First position {x, y}
+     * @param {Object} pos2 - Second position {x, y}
+     * @returns {boolean} True if positions are adjacent
+     */
+    isAdjacent(pos1, pos2) {
+        const dx = Math.abs(pos1.x - pos2.x);
+        const dy = Math.abs(pos1.y - pos2.y);
+        
+        // For flat-top hexagonal grid
+        if (dx === 0) {
+            // Same column - only adjacent if y differs by 1
+            return dy === 1;
+        } else if (dx === 1) {
+            // Adjacent columns - check y difference based on column parity
+            const evenCol = pos2.x % 2 === 0;
+            if (evenCol) {
+                // Even column: adjacent to same y and y-1
+                return dy === 0 || dy === 1;
+            } else {
+                // Odd column: adjacent to same y and y+1
+                return dy === 0 || dy === 1;
             }
         }
         
@@ -90,26 +129,67 @@ class PlacementController {
      * @returns {Array} Array of valid adjacent positions {x, y}
      */
     getValidAdjacentPositions() {
-        const lastPosition = this.getLastPosition();
-        if (!lastPosition) {
+        if (this.placementHistory.length === 0) {
             return []; // First card - return empty array to allow any position
         }
 
         const validPositions = [];
         
-        for (const direction of this.adjacentDirections) {
-            const adjacentPos = {
-                x: lastPosition.x + direction.x,
-                y: lastPosition.y + direction.y
-            };
+        // Check all possible positions around all placed cards
+        for (const placement of this.placementHistory) {
+            const cardPos = placement.position;
             
-            // Check if position is not already occupied
-            if (!this.grid.has(`${adjacentPos.x},${adjacentPos.y}`)) {
-                validPositions.push(adjacentPos);
+            // Generate all possible adjacent positions for this card
+            const adjacentPositions = this.getAdjacentPositions(cardPos);
+            
+            for (const adjacentPos of adjacentPositions) {
+                // Check if position is not already occupied
+                if (!this.grid.has(`${adjacentPos.x},${adjacentPos.y}`)) {
+                    // Check if this position is adjacent to exactly one card
+                    const validation = this.isAdjacentToExactlyOneCard(adjacentPos);
+                    if (validation.isValid) {
+                        // Only add if not already in the list
+                        const exists = validPositions.some(pos => pos.x === adjacentPos.x && pos.y === adjacentPos.y);
+                        if (!exists) {
+                            validPositions.push(adjacentPos);
+                        }
+                    }
+                }
             }
         }
         
         return validPositions;
+    }
+
+    /**
+     * Get all adjacent positions for a given position in a flat-top hexagonal grid
+     * @param {Object} position - The position {x, y}
+     * @returns {Array} Array of adjacent positions {x, y}
+     */
+    getAdjacentPositions(position) {
+        const adjacent = [];
+        const { x, y } = position;
+        
+        // Same column positions
+        adjacent.push({ x, y: y - 1 }); // top
+        adjacent.push({ x, y: y + 1 }); // bottom
+        
+        // Adjacent column positions
+        adjacent.push({ x: x - 1, y }); // left
+        adjacent.push({ x: x + 1, y }); // right
+        
+        // Diagonal positions based on column parity
+        if (x % 2 === 0) {
+            // Even column
+            adjacent.push({ x: x - 1, y: y - 1 }); // top-left
+            adjacent.push({ x: x + 1, y: y - 1 }); // top-right
+        } else {
+            // Odd column
+            adjacent.push({ x: x - 1, y: y + 1 }); // bottom-left
+            adjacent.push({ x: x + 1, y: y + 1 }); // bottom-right
+        }
+        
+        return adjacent;
     }
 
     /**
@@ -119,8 +199,14 @@ class PlacementController {
      * @returns {Object} Validation result with isValid and reason
      */
     validatePlacement(position, isFirstCard = false) {
+        console.log(`PlacementController: Validating position (${position.x}, ${position.y}), isFirstCard: ${isFirstCard}`);
+        console.log(`PlacementController: Current grid:`, Array.from(this.grid.entries()));
+        console.log(`PlacementController: Placement history length:`, this.placementHistory.length);
+        console.log(`PlacementController: Placement history details:`, this.placementHistory);
+        
         // Check if position is already occupied
         if (this.grid.has(`${position.x},${position.y}`)) {
+            console.log(`PlacementController: Position already occupied`);
             return {
                 isValid: false,
                 reason: 'Position already occupied'
@@ -129,20 +215,21 @@ class PlacementController {
 
         // First card can be placed anywhere
         if (isFirstCard || this.placementHistory.length === 0) {
+            console.log(`PlacementController: First card placement allowed`);
             return {
                 isValid: true,
                 reason: 'First card placement'
             };
         }
 
-        // Subsequent cards must be adjacent to the last placed card
-        if (!this.isAdjacentToLast(position)) {
-            return {
-                isValid: false,
-                reason: 'Card must be placed adjacent to the last placed card'
-            };
+        // Subsequent cards must be adjacent to exactly one previous card
+        const adjacencyValidation = this.isAdjacentToExactlyOneCard(position);
+        console.log(`PlacementController: Adjacency validation:`, adjacencyValidation);
+        if (!adjacencyValidation.isValid) {
+            return adjacencyValidation;
         }
 
+        console.log(`PlacementController: Valid placement`);
         return {
             isValid: true,
             reason: 'Valid placement'

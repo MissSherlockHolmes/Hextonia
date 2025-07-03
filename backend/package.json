@@ -1,0 +1,13 @@
+{
+  "name": "ekilex-backend",
+  "version": "1.0.0",
+  "description": "Backend app for Ekilex API demo",
+  "main": "ekilex.js",
+  "scripts": {
+    "start": "node ekilex.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.0.1",
+    "node-fetch": "^2.6.7"
+  }
+}

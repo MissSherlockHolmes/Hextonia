@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hextonia</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar"></div>
+    <div id="main"></div>
+    
+    <script src="/header.js"></script>
+    <script src="/search.js"></script>
+    <script src="/controlPlacement.js"></script>
+    <script src="/hexCards.js"></script>
+    <script src="/sidebar.js"></script>
+    <script src="/main.js"></script>
+    <script src="/hexagons.js"></script>
+    <script src="/hexgrid.js"></script>
+    <script src="/hexsnap.js"></script>
+    <script>
+        // Call component functions
+        createSidebar();
+        createMain();
+        createHexagons();
+        createHexGrid();
+        enableHexSnap();
+    </script>
+</body>
+</html> 

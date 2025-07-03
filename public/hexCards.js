@@ -110,6 +110,11 @@ class HexCardsManager {
                 if (typeof makeDraggable === 'function') {
                     makeDraggable(hexagon, box);
                 }
+                
+                // Add dots to the hexagon
+                if (window.hexDotsManager) {
+                    window.hexDotsManager.addDotsToHexagon(hexagon);
+                }
             }
         }
     }
@@ -158,6 +163,11 @@ class HexCardsManager {
                 // Remove event listeners to prevent dragging
                 const newHexagon = hexagon.cloneNode(true);
                 hexagon.parentNode.replaceChild(newHexagon, hexagon);
+                
+                // Ensure dots are added to the cloned hexagon
+                if (window.hexDotsManager) {
+                    window.hexDotsManager.addDotsToHexagon(newHexagon);
+                }
             }
             
             // Show success feedback

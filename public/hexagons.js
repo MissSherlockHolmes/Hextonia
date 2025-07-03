@@ -37,6 +37,11 @@ function createHexagons() {
         // Make hexagon draggable
         makeDraggable(hexagon, box);
         box.appendChild(hexagon);
+        
+        // Add dots to the hexagon
+        if (window.hexDotsManager) {
+            window.hexDotsManager.addDotsToHexagon(hexagon);
+        }
     });
     
     console.log('Hexagons created and made draggable');
